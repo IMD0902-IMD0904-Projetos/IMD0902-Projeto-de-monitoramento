@@ -1,6 +1,7 @@
 #ifndef __DISPOSITIVO_CONTROLLER_H__
 #define __DISPOSITIVO_CONTROLLER_H__
-#include "RFID.h";
+#include "RFID.h"
+#include "Botao.h"
 /*!
 * Essa classe representa o controlador do dispositivo que é responsável por
 * rastrear, processar e manipular os dados recebidos pelo sensor de distância
@@ -15,19 +16,24 @@ class DispositivoController {
             DISPONIVEL = 0,
             OCUPADA_SEM_REGISTRO,
             OCUPADA,
-            EM_MANUTENCAO
+            EM_MANUTENCAO,
+            DESLIGADO
         };
 
-        EstadoEstacao estadoAtual;
-        EstadoEstacao estadoAnterior;
+        EstadoEstacao estadoAtual = EstadoEstacao::DISPONIVEL;
+        EstadoEstacao estadoAnterior = EstadoEstacao::DESLIGADO;
         float distancia;
         RFID rfid;
+        Botao botao;
         // Em cm/uS
         const float VELOCIDADE_DO_SOM = 0.034;
-        const float DISTANCIA_TRIGGER = 40.0;
+        const float DISTANCIA_TRIGGER = 15.0;
         const int TRIGGER_PIN = 13;
         const int ECHO_PIN = 12;
-        const int BOTAO_PIN = 14;
+        const int LED_AZUL_PIN = 27;
+        const int LED_VERDE_PIN = 26;
+        const int LED_AMARELA_PIN = 25;
+        const int LED_VERMELHA_PIN = 33;
     public:
         //=== Implementa padrão de projeto Singleton nessa classe
         DispositivoController() = default;
@@ -47,12 +53,15 @@ class DispositivoController {
         void renderizar(void) const;
 
     private:
-        //=== Esses métodos que começam em lerXXX() são usados dentro de processarEventos()
-        float lerDistancia();
-        int lerBotao();
-
+        //=== Lê distância do sensor ultrassônico. Valor em cm/uS.
+        float lerDistancia(void);
         //=== Executa pulso ultrassônico para ser lido pelo método lerDistancia()
-        void executarPulso();
+        void executarPulso(void);
+
+        void ligarLedAzul(void) const;  
+        void ligarLedAmarela(void) const;
+        void ligarLedVerde(void) const;
+        void ligarLedVermelha(void) const;  
 
 };
 #endif
