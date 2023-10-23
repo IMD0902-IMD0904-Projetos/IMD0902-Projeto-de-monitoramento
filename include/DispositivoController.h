@@ -2,7 +2,9 @@
 #define __DISPOSITIVO_CONTROLLER_H__
 #include "RFID.h"
 #include "Botao.h"
-/*!
+#include "Conexao.h"
+#include "Produtor.h"
+/*
 * Essa classe representa o controlador do dispositivo que é responsável por
 * rastrear, processar e manipular os dados recebidos pelo sensor de distância
 * ultrassônico, botão e módulo de leitor RFID.
@@ -12,28 +14,47 @@
 */
 class DispositivoController {
     private:
-        enum class EstadoEstacao : short {
+        enum class EstadoEstacao : int {
             DISPONIVEL = 0,
             OCUPADA_SEM_REGISTRO,
-            OCUPADA,
+            OCUPADA_COM_REGISTRO,
             EM_MANUTENCAO,
             DESLIGADO
+        };
+        const char* estadoEstacaoEnumStr[4] = {
+            "DISPONIVEL", 
+            "OCUPADA_SEM_REGISTRO",
+            "OCUPADA_COM_REGISTRO", 
+            "EM_MANUTENCAO"
+        };
+
+        Produtor::Aluno listaAlunos[3] = {
+            Produtor::Aluno(1, "Lucas Vinícius Góis Nogueira", "20210076805", "ac 49 23 fa"),
+            Produtor::Aluno(2, "Lourrayni Feliph Querino de Araujo Dantas", "20230032693", "bc 49 23 fb"),
+            Produtor::Aluno(3, "Pedro Lucas Góis Costa", "20210056750", "cc 49 23 fc")
         };
 
         EstadoEstacao estadoAtual = EstadoEstacao::DISPONIVEL;
         EstadoEstacao estadoAnterior = EstadoEstacao::DESLIGADO;
+        char* tagAdmin;
+        Produtor::Aluno* alunoAtual = nullptr;
         float distancia;
         RFID rfid;
         Botao botao;
+        Conexao conexao;
+        Produtor produtor;
         // Em cm/uS
         const float VELOCIDADE_DO_SOM = 0.034;
         const float DISTANCIA_TRIGGER = 15.0;
         const int TRIGGER_PIN = 13;
         const int ECHO_PIN = 12;
-        const int LED_AZUL_PIN = 27;
-        const int LED_VERDE_PIN = 26;
-        const int LED_AMARELA_PIN = 25;
+        const int LED_VERDE_PIN = 27;
+        const int LED_AMARELA_PIN = 26;
+        const int LED_AZUL_PIN = 25;
         const int LED_VERMELHA_PIN = 33;
+        // Informações da estação de trabalho
+        const long ID_DISPOSITIVO = 1L;
+        const char* NOME_DISPOSITIVO = "PC202-01";
     public:
         //=== Implementa padrão de projeto Singleton nessa classe
         DispositivoController() = default;
@@ -57,6 +78,8 @@ class DispositivoController {
         float lerDistancia(void);
         //=== Executa pulso ultrassônico para ser lido pelo método lerDistancia()
         void executarPulso(void);
+
+        Produtor::Aluno obterAlunoPorTag(const char* tag);
 
         void ligarLedAzul(void) const;  
         void ligarLedAmarela(void) const;
