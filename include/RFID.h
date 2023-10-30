@@ -8,6 +8,7 @@ class RFID {
         const int RST_PIN = 15;
         MFRC522 rfid;
         String identificador;
+        
     public:
         //=== Implementa padrão de projeto Singleton nessa classe
         RFID() = default;

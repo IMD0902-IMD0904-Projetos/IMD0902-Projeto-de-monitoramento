@@ -4,7 +4,6 @@ class Botao {
     public:
         enum class ModoBotao: short {
             DESLIGADO=0,
-            SAIDA,
             SOLICITAR_MANUTENCAO,
             CONFIGURACAO
         };

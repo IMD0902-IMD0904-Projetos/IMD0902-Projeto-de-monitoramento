@@ -3,17 +3,22 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <PubSubClient.h>
+#include "Aluno.h"
+
 class Produtor {
     private:
+        // Informações do broker Adafruit
         const char* IO_USERNAME = "fawnbr";
-        const char* IO_KEY = "aio_xIas91DlKduxcjkgHPHc288W1rDM";
+        const char* IO_KEY = "adafruitkey";
         const char* TOPICO_ACESSO = "fawnbr/feeds/projetomonitoramento.acesso";
         const char* TOPICO_ALTERACAO_ESTADO = "fawnbr/feeds/projetomonitoramento.alteracaoestado";
         const char* MQTT_BROKER = "io.adafruit.com";
+        // Informações do MQTT
+        String clientId = "ESP32ClientProjetoMonitoramento";
         const int MQTT_PORT = 1883;
         const int MQTT_TIMEOUT = 10000;
-        WiFiClient* esp32WiFiClient = nullptr;
-        PubSubClient* mqttClient = nullptr;
+        WiFiClient esp32WiFiClient;
+        PubSubClient mqttClient;
     public:
         //=== Implementa padrão de projeto Singleton nessa classe
         Produtor() = default;
@@ -23,25 +28,13 @@ class Produtor {
         Produtor& operator=(Produtor&&) = delete;
         ~Produtor() = default;
 
-        // TODO Remover quando a informação estiver salva em um BD.
-        struct Aluno {
-            long id;
-            const char* nome;
-            const char* matricula;
-            const char* tag;
-
-            // Construtor
-            Aluno(long _id, const char* _nome, const char* _matricula, const char* _tag)
-                : id(_id), nome(_nome), matricula(_matricula), tag(_tag) {}
-            ~Aluno() = default;
-        };
-
         struct MensagemAlteracaoEstado {
             long id;
-            const char* nome;
-            const char* estado;
+            String nome;
+            String estado;
             // Construtor
-            MensagemAlteracaoEstado(const long id, const char* nome, const char* estado) : id(id), nome(nome), estado(estado) {}
+            MensagemAlteracaoEstado(const long id, String nome, String estado) : 
+            id(id), nome(nome), estado(estado) {}
             ~MensagemAlteracaoEstado() = default;
         };
 
@@ -49,8 +42,10 @@ class Produtor {
             long idEstacao;
             Aluno aluno;
             // Construtor
-            MensagemAcesso(const long idEstacao, Aluno* aluno) : 
-                idEstacao(idEstacao), aluno(*aluno) {}
+            MensagemAcesso(const long _idEstacao, Aluno _aluno) {
+                idEstacao = _idEstacao;
+                aluno = _aluno;
+            }
             ~MensagemAcesso() = default;
         };
 
@@ -58,13 +53,12 @@ class Produtor {
         void inicializar(void);
         void conectar(void);
         bool estaConectado(void);
-        bool publicarMensagemAlteracaoEstado(const MensagemAlteracaoEstado* mensagem);
-        bool publicarMensagemEntrada(const MensagemAcesso* mensagem);
-        bool publicarMensagemSaida(const MensagemAcesso* mensagem);
+        bool publicarMensagemAlteracaoEstado(const MensagemAlteracaoEstado mensagem);
+        bool publicarMensagemEntrada(const MensagemAcesso mensagem);
+        bool publicarMensagemSaida(const MensagemAcesso mensagem);
 
-        //=== Utils
-        const char* obterMomentoAtual(void);
-        String montarJSONAcesso(const MensagemAcesso* mensagem, const char* tipo);
-        String montarJSONAlteracaoEstado(const MensagemAlteracaoEstado* mensagem);
+        // //=== Utils
+        String montarJSONAcesso(const MensagemAcesso mensagem, String tipo);
+        String montarJSONAlteracaoEstado(const MensagemAlteracaoEstado mensagem);
 };
 #endif

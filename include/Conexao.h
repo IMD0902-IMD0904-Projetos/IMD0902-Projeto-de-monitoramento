@@ -2,9 +2,9 @@
 #define __CONEXAO_H__
 class Conexao {
     private:
-        const char* WIFI_SSID = "imd0902";
-        const char* WIFI_PASSWORD = "imd0902iot";
-        const int WIFI_TIMEOUT = 20000;
+        const char* WIFI_SSID = "ssid";
+        const char* WIFI_PASSWORD = "password";
+        const int WIFI_TIMEOUT = 10000;
         const int LED_CONEXAO_PIN = 2;
     public:
         //=== Implementa padrão de projeto Singleton nessa classe
