@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <MFRC522.h>
 #include "DispositivoController.h"
 
 DispositivoController dispositivoController;
@@ -15,6 +14,3 @@ void loop() {
     dispositivoController.renderizar();
     delay(200);
 }
-
-
-
