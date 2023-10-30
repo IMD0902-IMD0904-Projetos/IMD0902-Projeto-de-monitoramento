@@ -19,25 +19,28 @@ class DispositivoController {
             OCUPADA_SEM_REGISTRO,
             OCUPADA_COM_REGISTRO,
             EM_MANUTENCAO,
-            DESLIGADO
+            DESLIGADO,
+            CONFIGURACAO
         };
-        const char* estadoEstacaoEnumStr[4] = {
+        const char* estadoEstacaoEnumStr[5] = {
             "DISPONIVEL", 
             "OCUPADA_SEM_REGISTRO",
             "OCUPADA_COM_REGISTRO", 
-            "EM_MANUTENCAO"
+            "EM_MANUTENCAO",
+            "DESLIGADO"
         };
 
-        Produtor::Aluno listaAlunos[3] = {
-            Produtor::Aluno(1, "Lucas Vinícius Góis Nogueira", "20210076805", "ac 49 23 fa"),
-            Produtor::Aluno(2, "Lourrayni Feliph Querino de Araujo Dantas", "20230032693", "bc 49 23 fb"),
-            Produtor::Aluno(3, "Pedro Lucas Góis Costa", "20210056750", "cc 49 23 fc")
+        const Aluno listaAlunos[3] = {
+            Aluno(1, "Lucas Vinícius Góis Nogueira", "20210076805", " a9 4f 89 1f"),
+            Aluno(2, "Lourrayni Feliph Querino de Araujo Dantas", "20230032693", "ler"),
+            Aluno(3, "Pedro Lucas Góis Costa", "20210056750", "ler")
         };
 
-        EstadoEstacao estadoAtual = EstadoEstacao::DISPONIVEL;
+        EstadoEstacao estadoAtual = EstadoEstacao::DESLIGADO;
         EstadoEstacao estadoAnterior = EstadoEstacao::DESLIGADO;
-        char* tagAdmin;
-        Produtor::Aluno* alunoAtual = nullptr;
+        EstadoEstacao ultimoEstadoPreConfiguracao = EstadoEstacao::DESLIGADO;
+        String tagAdmin = " 93 bc 46 13";
+        String tagLogada;
         float distancia;
         RFID rfid;
         Botao botao;
@@ -78,9 +81,7 @@ class DispositivoController {
         float lerDistancia(void);
         //=== Executa pulso ultrassônico para ser lido pelo método lerDistancia()
         void executarPulso(void);
-
-        Produtor::Aluno obterAlunoPorTag(const char* tag);
-
+        Aluno obterAlunoPorTag(String tag);
         void ligarLedAzul(void) const;  
         void ligarLedAmarela(void) const;
         void ligarLedVerde(void) const;
