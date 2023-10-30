@@ -23,10 +23,7 @@ void Botao::resetarBotao() {
 }
 
 void Botao::definirModo(const unsigned long& duracao) {
-    if(duracao < 3000) {
-        this->modo = ModoBotao::SAIDA;
-    }
-    else if(duracao >= 3000 && duracao < 7000) {
+    if(duracao >= 3000 && duracao < 7000) {
         this->modo = ModoBotao::SOLICITAR_MANUTENCAO;
     }
     // duracao >= 7000
