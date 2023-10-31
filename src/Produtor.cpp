@@ -40,7 +40,6 @@ String Produtor::montarJSONAlteracaoEstado(const MensagemAlteracaoEstado mensage
     json.concat("\"nome\": \"" + String(mensagem.nome) + "\",");
     json.concat("\"estado\": \"" + String(mensagem.estado) + "\"");
     json.concat("}");
-    Serial.println("JSON:" + json);
     return json;
 }
 
@@ -54,6 +53,5 @@ String Produtor::montarJSONAcesso(const MensagemAcesso mensagem, String tipo) {
     json.concat("\"matriculaAluno\": \"" + String(mensagem.aluno.matricula) + "\",");
     json.concat("\"tipo\": \"" + String(tipo) + "\"");
     json.concat("}");
-    Serial.println("JSON:" + json);
     return json;
 }

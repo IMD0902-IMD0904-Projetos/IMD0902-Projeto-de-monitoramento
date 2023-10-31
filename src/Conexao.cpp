@@ -4,12 +4,12 @@
 void Conexao::inicializar() {
     pinMode(LED_CONEXAO_PIN, OUTPUT);
     
-  Serial.println("Procurando redes Wi-Fi disponíveis...");
-  int numRedes = WiFi.scanNetworks();
+    Serial.println("Procurando redes Wi-Fi disponíveis...");
+    int numRedes = WiFi.scanNetworks();
 
-  if (numRedes == 0) {
-    Serial.println("Nenhuma rede Wi-Fi encontrada.");
-  } else {
+    if (numRedes == 0) {
+        Serial.println("Nenhuma rede Wi-Fi encontrada.");
+    } else {
     Serial.print(numRedes);
     Serial.println(" redes Wi-Fi encontradas:");
 

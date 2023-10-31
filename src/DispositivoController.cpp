@@ -43,6 +43,11 @@ void DispositivoController::atualizar() {
     estadoAnterior = estadoAtual;
     if (estadoAtual == EstadoEstacao::DESLIGADO) {
         estadoAtual = EstadoEstacao::DISPONIVEL;
+        Produtor::MensagemAlteracaoEstado msg(ID_DISPOSITIVO, NOME_DISPOSITIVO, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
+        bool publicado = produtor.publicarMensagemAlteracaoEstado(msg);
+        if(publicado) {
+            Serial.println("Mensagem de alteração de estado publicada!");
+        }
     }
     else if(estadoAtual == EstadoEstacao::DISPONIVEL) {
         if(distancia <= DISTANCIA_TRIGGER) {
@@ -53,14 +58,18 @@ void DispositivoController::atualizar() {
         if(distancia <= DISTANCIA_TRIGGER) {
             if(!rfid.obterIdentificador().isEmpty()) {
                 Aluno alunoAtual = obterAlunoPorTag(rfid.obterIdentificador());
-                Serial.println("Aluno:" + String(alunoAtual.id));
                 if(alunoAtual.id != 0) {
                     estadoAtual = EstadoEstacao::OCUPADA_COM_REGISTRO;
                     tagLogada = alunoAtual.tag;
-                    Produtor::MensagemAcesso msgAcesso(ID_DISPOSITIVO, alunoAtual);
-                    bool publicado = produtor.publicarMensagemEntrada(msgAcesso);
+                    Produtor::MensagemAlteracaoEstado msg(ID_DISPOSITIVO, NOME_DISPOSITIVO, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
+                    bool publicado = produtor.publicarMensagemAlteracaoEstado(msg);
                     if(publicado) {
-                        Serial.println("Publicado mensagem de entrada de acesso!");
+                        Serial.println("Mensagem de alteração de estado publicada!");
+                    }
+                    Produtor::MensagemAcesso msgAcesso(ID_DISPOSITIVO, alunoAtual);
+                    bool publicadoEntrada = produtor.publicarMensagemEntrada(msgAcesso);
+                    if(publicadoEntrada) {
+                        Serial.println("Mensagem de entrada publicada!");
                     }
                 }
             }
@@ -73,8 +82,16 @@ void DispositivoController::atualizar() {
         if(!rfid.obterIdentificador().isEmpty() && rfid.obterIdentificador().indexOf(tagLogada) == 0) {
             // Só desloga o usuário caso a tag aproximada seja igual à tag do ocupante  
             estadoAtual = EstadoEstacao::DISPONIVEL;
+            Produtor::MensagemAlteracaoEstado msg(ID_DISPOSITIVO, NOME_DISPOSITIVO, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
+            bool publicado = produtor.publicarMensagemAlteracaoEstado(msg);
+            if(publicado) {
+                Serial.println("Mensagem de alteração de estado publicada!");
+            }
             Produtor::MensagemAcesso msgAcesso(ID_DISPOSITIVO, obterAlunoPorTag(tagLogada));
-            produtor.publicarMensagemSaida(msgAcesso);
+            bool publicadoSaida = produtor.publicarMensagemSaida(msgAcesso);
+            if(publicadoSaida) {
+                Serial.println("Mensagem de saída publicada!");
+            }
             tagLogada = "";
         }
     }
@@ -82,7 +99,10 @@ void DispositivoController::atualizar() {
         if(!rfid.obterIdentificador().isEmpty() && rfid.obterIdentificador().indexOf(tagAdmin) == 0) {
             estadoAtual = EstadoEstacao::DISPONIVEL;
             Produtor::MensagemAlteracaoEstado msg(ID_DISPOSITIVO, NOME_DISPOSITIVO, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
-            produtor.publicarMensagemAlteracaoEstado(msg);
+            bool publicado = produtor.publicarMensagemAlteracaoEstado(msg);
+            if(publicado) {
+                Serial.println("Mensagem de alteração de estado publicada!");
+            }
         }
     }
     else if(estadoAtual == EstadoEstacao::CONFIGURACAO) {
@@ -94,12 +114,18 @@ void DispositivoController::atualizar() {
     
     if(botao.obterModo() == Botao::ModoBotao::SOLICITAR_MANUTENCAO) {
         estadoAtual = EstadoEstacao::EM_MANUTENCAO;
+        Produtor::MensagemAlteracaoEstado msg(ID_DISPOSITIVO, NOME_DISPOSITIVO, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
+        bool publicado = produtor.publicarMensagemAlteracaoEstado(msg);
+        if(publicado) {
+            Serial.println("Mensagem de alteração de estado publicada com sucesso!");
+        }
         if(!tagLogada.isEmpty()) {
             Produtor::MensagemAcesso msgAcesso(ID_DISPOSITIVO, obterAlunoPorTag(tagLogada));
-            produtor.publicarMensagemSaida(msgAcesso);
+            bool publicadoSaida = produtor.publicarMensagemSaida(msgAcesso);
+            if(publicadoSaida) {
+                Serial.println("Mensagem de saída publicada com sucesso!");
+            }
             tagLogada = "";
-            Produtor::MensagemAlteracaoEstado msg(ID_DISPOSITIVO, NOME_DISPOSITIVO, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
-            produtor.publicarMensagemAlteracaoEstado(msg);
         }
         botao.resetarBotao();
     }
@@ -114,47 +140,26 @@ void DispositivoController::atualizar() {
 void DispositivoController::renderizar() const {
     if(estadoAtual == EstadoEstacao::DISPONIVEL && estadoAnterior != estadoAtual) {
         this->ligarLedVerde();
-        Serial.println(">>> ---------------------------- <<<");
-        Serial.println(">>> Sistema de Presença - IMD0902<<<");
-        Serial.println(">>>                              <<<");
         Serial.println(">>> Distância (cm): " + String(distancia));
-        Serial.println(">>> Estado: DISPONIVEL           <<<");
-        Serial.println(">>> ---------------------------- <<<");
+        Serial.println(">>> Estado: DISPONIVEL");
     }
     else if(estadoAtual == EstadoEstacao::OCUPADA_SEM_REGISTRO && estadoAnterior != estadoAtual) {
         this->ligarLedAmarela();
-        Serial.println(">>> ---------------------------- <<<");
-        Serial.println(">>> Sistema de Presença - IMD0902<<<");
-        Serial.println(">>>                              <<<");
         Serial.println(">>> Distância (cm): " + String(distancia));
-        Serial.println(">>> Estado: OCUPADA_SEM_REGISTRO  <<<");
-        Serial.println(">>> ---------------------------- <<<");
+        Serial.println(">>> Estado: OCUPADA_SEM_REGISTRO");
     }
     else if(estadoAtual == EstadoEstacao::OCUPADA_COM_REGISTRO && estadoAnterior != estadoAtual) {
         this->ligarLedAzul();
-        Serial.println(">>> ---------------------------- <<<");
-        Serial.println(">>> Sistema de Presença - IMD0902<<<");
-        Serial.println(">>>                              <<<");
-        Serial.println(">>> Identificador: " + tagLogada);
-        Serial.println(">>> Estado: OCUPADA_COM_REGISTRO <<<");
-        Serial.println(">>> ---------------------------- <<<");
+        Serial.println(">>> Estado: OCUPADA_COM_REGISTRO");
     }
     else if(estadoAtual == EstadoEstacao::EM_MANUTENCAO && estadoAnterior != estadoAtual) {
         this->ligarLedVermelha();
-        Serial.println(">>> ---------------------------- <<<");
-        Serial.println(">>> Sistema de Presença - IMD0902<<<");
-        Serial.println(">>>                              <<<");
-        Serial.println(">>> A máquina está indisponível. <<<");
-        Serial.println(">>> Estado: EM_MANUTENCAO        <<<");
-        Serial.println(">>> ---------------------------- <<<");
+        Serial.println(">>> Estado: EM_MANUTENCAO");
     }
-    else if (estadoAtual == EstadoEstacao::CONFIGURACAO && estadoAtual != estadoAnterior) {
-        Serial.println(">>> ---------------------------- <<<");
-        Serial.println(">>> Sistema de Presença - IMD0902<<<");
-        Serial.println(">>>                              <<<");
-        Serial.println(">>> Aproxime o novo cartão administrador. <<<");
-        Serial.println(">>> Estado: CONFIGURACAO         <<<");
-        Serial.println(">>> ---------------------------- <<<");
+    else if (estadoAtual == EstadoEstacao::CONFIGURACAO) {
+        if(estadoAtual != estadoAnterior) {
+            Serial.println(">>> Estado: CONFIGURACAO");
+        }
         this->ligarLedVerde();
         delay(50);
         this->ligarLedAmarela();

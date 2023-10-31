@@ -32,8 +32,8 @@ class DispositivoController {
 
         const Aluno listaAlunos[3] = {
             Aluno(1, "Lucas Vinícius Góis Nogueira", "20210076805", " a9 4f 89 1f"),
-            Aluno(2, "Lourrayni Feliph Querino de Araujo Dantas", "20230032693", "ler"),
-            Aluno(3, "Pedro Lucas Góis Costa", "20210056750", "ler")
+            Aluno(2, "Lourrayni Feliph Querino de Araujo Dantas", "20230032693", " 93 bc 46 13"),
+            Aluno(3, "Pedro Lucas Góis Costa", "20210056750", " a6 ed 96 57")
         };
 
         EstadoEstacao estadoAtual = EstadoEstacao::DESLIGADO;
@@ -48,7 +48,7 @@ class DispositivoController {
         Produtor produtor;
         // Em cm/uS
         const float VELOCIDADE_DO_SOM = 0.034;
-        const float DISTANCIA_TRIGGER = 15.0;
+        const float DISTANCIA_TRIGGER = 25.0;
         const int TRIGGER_PIN = 13;
         const int ECHO_PIN = 12;
         const int LED_VERDE_PIN = 27;
