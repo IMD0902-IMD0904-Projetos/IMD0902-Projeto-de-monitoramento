@@ -9,7 +9,7 @@ class Produtor {
     private:
         // Informações do broker Adafruit
         const char* IO_USERNAME = "fawnbr";
-        const char* IO_KEY = "adafruitkey";
+        const char* IO_KEY = "io_key";
         const char* TOPICO_ACESSO = "fawnbr/feeds/projetomonitoramento.acesso";
         const char* TOPICO_ALTERACAO_ESTADO = "fawnbr/feeds/projetomonitoramento.alteracaoestado";
         const char* MQTT_BROKER = "io.adafruit.com";
@@ -29,12 +29,16 @@ class Produtor {
         ~Produtor() = default;
 
         struct MensagemAlteracaoEstado {
-            long id;
+            int id;
             String nome;
             String estado;
             // Construtor
-            MensagemAlteracaoEstado(const long id, String nome, String estado) : 
-            id(id), nome(nome), estado(estado) {}
+            MensagemAlteracaoEstado(int _id, String _nome, String _estado)
+            {
+                id = _id;
+                nome = _nome;
+                estado = _estado;
+            }
             ~MensagemAlteracaoEstado() = default;
         };
 

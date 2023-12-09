@@ -36,22 +36,35 @@ bool Produtor::publicarMensagemSaida(const MensagemAcesso mensagem) {
 String Produtor::montarJSONAlteracaoEstado(const MensagemAlteracaoEstado mensagem) {
     String json;
     json.concat("{");
-    json.concat("\"id\": " + String(mensagem.id) + ",");
-    json.concat("\"nome\": \"" + String(mensagem.nome) + "\",");
-    json.concat("\"estado\": \"" + String(mensagem.estado) + "\"");
-    json.concat("}");
+    json.concat("\"id\": ");
+    json.concat(String(mensagem.id));
+    json.concat(",");
+    json.concat("\"nome\": \"");
+    json.concat(String(mensagem.nome));
+    json.concat("\",");
+    json.concat("\"estado\": \"");
+    json.concat(String(mensagem.estado));
+    json.concat("\"}");
     return json;
 }
 
 String Produtor::montarJSONAcesso(const MensagemAcesso mensagem, String tipo) {
     String json;
     json.concat("{");
-    json.concat("\"idEstacao\": " + String(mensagem.idEstacao) + ",");
-    // json.concat("\"tag\": " + String(mensagem.tag) + ",");
-    json.concat("\"idAluno\": " + String(mensagem.aluno.id) + ",");
-    json.concat("\"nomeAluno\": \"" + String(mensagem.aluno.nome) + "\",");
-    json.concat("\"matriculaAluno\": \"" + String(mensagem.aluno.matricula) + "\",");
-    json.concat("\"tipo\": \"" + String(tipo) + "\"");
-    json.concat("}");
+    json.concat("\"idEstacao\": ");
+    json.concat(String(mensagem.idEstacao));
+    json.concat(",");
+    json.concat("\"idAluno\": ");
+    json.concat(String(mensagem.aluno.id));
+    json.concat(",");
+    json.concat("\"nomeAluno\": \"");
+    json.concat(String(mensagem.aluno.nome));
+    json.concat("\",");
+    json.concat("\"matriculaAluno\": \"");
+    json.concat(String(mensagem.aluno.matricula));
+    json.concat("\",");
+    json.concat("\"tipo\": \"");
+    json.concat(String(tipo));
+    json.concat("\"}");
     return json;
 }
