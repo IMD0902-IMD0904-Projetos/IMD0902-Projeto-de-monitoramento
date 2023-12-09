@@ -5,6 +5,7 @@
 #include "Conexao.h"
 #include "Produtor.h"
 #include "Display.hpp"
+#include "EstacaoDeTrabalho.h"
 /*
 * Essa classe representa o controlador do dispositivo que é responsável por
 * rastrear, processar e manipular os dados recebidos pelo sensor de distância
@@ -44,10 +45,11 @@ class DispositivoController {
         Conexao conexao;
         Produtor produtor;
         Display display;
-
+        // Informações da política de reconexão ao WiFi ou AdafruitIO
+        long tempoPoliticaDeReconexao = 30000;
+        long tempoTentativaAnterior;
         // Informações da estação de trabalho
-        int ID_DISPOSITIVO = 1;
-        char* NOME_DISPOSITIVO = "PC202-01";
+        EstacaoDeTrabalho estacaoDeTrabalho;
         Aluno alunoAtual;
     public:
         //=== Implementa padrão de projeto Singleton nessa classe
@@ -69,5 +71,16 @@ class DispositivoController {
 
     private:
         Aluno obterAlunoPorTag(String tag);
+        // === Arquivo utils (SPIFFS)
+        void escreverEmArquivo(String payload, String caminho, String modo);
+        String lerArquivo(String caminho);
+        void abrirSistemaDeArquivos(void);
+        // === Política de reconexão e sincronização utils
+        void verificaConexaoEPublicaMensagens(void);
+        void publicarMensagensAtrasadas(void);
+        void adicionarMensagemAcessoEmArquivo(Produtor::MensagemAcesso msg, String tipo);
+        // === Estações de trabalho utils
+        void carregarEstacoesDeTrabalho(void);
+        EstacaoDeTrabalho obterEstacaoDeTrabalhoPorTag(String tag);
 };
 #endif

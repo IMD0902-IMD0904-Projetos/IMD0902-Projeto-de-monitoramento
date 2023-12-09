@@ -1,12 +1,16 @@
 #include <Arduino.h>
 #include <SPI.h>
+#include <FS.h>
 #include <cstring>
+#include <vector>
+#include "SPIFFS.h"
 #include "DispositivoController.h"
 
 //=== Métodos do Game Loop
 void DispositivoController::inicializar() {
     Serial.begin(115200);
     SPI.begin();
+    abrirSistemaDeArquivos();
     rfid.inicializar();
     display.inicializar();
     display.desenhar();
@@ -14,6 +18,7 @@ void DispositivoController::inicializar() {
     conexao.inicializar();
     digitalWrite(2, LOW);
     produtor.inicializar();
+    tempoTentativaAnterior = millis();
 }
 
 void DispositivoController::processarEventos() {
@@ -22,15 +27,7 @@ void DispositivoController::processarEventos() {
     digitalWrite(12, LOW);
     digitalWrite(5, HIGH);
     rfid.ler();
-    // Adota política de reconexão em caso de instabilidade
-    if(!conexao.estaConectado()) {
-        Serial.println("Não conectado à rede. Conectando...");
-        conexao.conectar();
-    }
-    if(conexao.estaConectado() && !produtor.estaConectado()) {
-        Serial.println("Produtor não conectado ao broker.");
-        produtor.conectar();
-    }
+    verificaConexaoEPublicaMensagens();
 }
 
 void DispositivoController::atualizar() {
@@ -43,33 +40,38 @@ void DispositivoController::atualizar() {
             alunoAtual = obterAlunoPorTag(rfid.obterIdentificador());
             if(alunoAtual.id != 0) {
                 estadoAtual = EstadoEstacao::OCUPADA;
-                Produtor::MensagemAlteracaoEstado msg(ID_DISPOSITIVO, NOME_DISPOSITIVO, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
+                Produtor::MensagemAlteracaoEstado msg(estacaoDeTrabalho.id, estacaoDeTrabalho.nome, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
                 bool publicado = produtor.publicarMensagemAlteracaoEstado(msg);
                 if(publicado) {
                     Serial.println("Mensagem de alteração de estado publicada!");
                 }
-                Produtor::MensagemAcesso msgAcesso(ID_DISPOSITIVO, alunoAtual);
+                Produtor::MensagemAcesso msgAcesso(estacaoDeTrabalho.id, alunoAtual);
                 bool publicadoEntrada = produtor.publicarMensagemEntrada(msgAcesso);
                 if(publicadoEntrada) {
                     Serial.println("Mensagem de entrada publicada!");
                 }
+                else {
+                    adicionarMensagemAcessoEmArquivo(msgAcesso, "ENTRADA");
+                }
             }
         }
     }
-
     else if(estadoAtual == EstadoEstacao::OCUPADA) {
         if(!rfid.obterIdentificador().isEmpty() && rfid.obterIdentificador().indexOf(alunoAtual.tag) == 0) {
             // Só desloga o usuário caso a tag aproximada seja igual à tag do ocupante  
             estadoAtual = EstadoEstacao::DISPONIVEL;
-            Produtor::MensagemAlteracaoEstado msg(ID_DISPOSITIVO, NOME_DISPOSITIVO, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
+            Produtor::MensagemAlteracaoEstado msg(estacaoDeTrabalho.id, estacaoDeTrabalho.nome, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
             bool publicado = produtor.publicarMensagemAlteracaoEstado(msg);
             if(publicado) {
                 Serial.println("Mensagem de alteração de estado publicada!");
             }
-            Produtor::MensagemAcesso msgAcesso(ID_DISPOSITIVO, obterAlunoPorTag(alunoAtual.tag));
+            Produtor::MensagemAcesso msgAcesso(estacaoDeTrabalho.id, obterAlunoPorTag(alunoAtual.tag));
             bool publicadoSaida = produtor.publicarMensagemSaida(msgAcesso);
             if(publicadoSaida) {
                 Serial.println("Mensagem de saída publicada!");
+            }
+            else {
+                adicionarMensagemAcessoEmArquivo(msgAcesso, "SAIDA");
             }
             alunoAtual = Aluno();
         }
@@ -77,7 +79,7 @@ void DispositivoController::atualizar() {
     else if(estadoAtual == EstadoEstacao::EM_MANUTENCAO) {
         if(!rfid.obterIdentificador().isEmpty() && rfid.obterIdentificador().indexOf(tagAdmin) == 0) {
             estadoAtual = EstadoEstacao::DISPONIVEL;
-            Produtor::MensagemAlteracaoEstado msg(ID_DISPOSITIVO, NOME_DISPOSITIVO, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
+            Produtor::MensagemAlteracaoEstado msg(estacaoDeTrabalho.id, estacaoDeTrabalho.nome, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
             bool publicado = produtor.publicarMensagemAlteracaoEstado(msg);
             if(publicado) {
                 Serial.println("Mensagem de alteração de estado publicada!");
@@ -86,30 +88,37 @@ void DispositivoController::atualizar() {
     }
     else if(estadoAtual == EstadoEstacao::CONFIGURACAO) {
         if(!rfid.obterIdentificador().isEmpty()) {
-            tagAdmin = rfid.obterIdentificador();
-            estadoAtual = ultimoEstadoPreConfiguracao == EstadoEstacao::DESLIGADO ? EstadoEstacao::DISPONIVEL : ultimoEstadoPreConfiguracao;
-            if(estadoAtual == EstadoEstacao::DISPONIVEL) {
-                Produtor::MensagemAlteracaoEstado msg(ID_DISPOSITIVO, NOME_DISPOSITIVO, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
-                bool publicado = produtor.publicarMensagemAlteracaoEstado(msg);
-                if(publicado) {
-                    Serial.println("Mensagem de alteração de estado publicada!");
+            EstacaoDeTrabalho edt = obterEstacaoDeTrabalhoPorTag(rfid.obterIdentificador());
+            if(edt.id != 0) {
+                estacaoDeTrabalho = edt;
+                estadoAtual = ultimoEstadoPreConfiguracao == EstadoEstacao::DESLIGADO ? EstadoEstacao::DISPONIVEL : ultimoEstadoPreConfiguracao;
+                if(estadoAtual == EstadoEstacao::DISPONIVEL) {
+                    Produtor::MensagemAlteracaoEstado msg(estacaoDeTrabalho.id, estacaoDeTrabalho.nome, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
+                    bool publicado = produtor.publicarMensagemAlteracaoEstado(msg);
+                    if(publicado) {
+                        Serial.println("Mensagem de alteração de estado publicada!");
+                    }
                 }
             }
+
         }
     }
     
     if(botao.obterModo() == Botao::ModoBotao::SOLICITAR_MANUTENCAO) {
         estadoAtual = EstadoEstacao::EM_MANUTENCAO;
-        Produtor::MensagemAlteracaoEstado msg(ID_DISPOSITIVO, NOME_DISPOSITIVO, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
+        Produtor::MensagemAlteracaoEstado msg(estacaoDeTrabalho.id, estacaoDeTrabalho.nome, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
         bool publicado = produtor.publicarMensagemAlteracaoEstado(msg);
         if(publicado) {
             Serial.println("Mensagem de alteração de estado publicada com sucesso!");
         }
         if(!alunoAtual.tag.isEmpty()) {
-            Produtor::MensagemAcesso msgAcesso(ID_DISPOSITIVO, alunoAtual);
+            Produtor::MensagemAcesso msgAcesso(estacaoDeTrabalho.id, alunoAtual);
             bool publicadoSaida = produtor.publicarMensagemSaida(msgAcesso);
             if(publicadoSaida) {
                 Serial.println("Mensagem de saída publicada com sucesso!");
+            }
+            else {
+                adicionarMensagemAcessoEmArquivo(msgAcesso, "SAIDA");
             }
             alunoAtual = Aluno();
         }
@@ -143,15 +152,15 @@ void DispositivoController::renderizar() {
         display.atualizaTempo(hour, minute);
     }
     if(estadoAtual == EstadoEstacao::DISPONIVEL && estadoAnterior != estadoAtual) {
-        display.desenharStatusDisponivel(NOME_DISPOSITIVO);
+        display.desenharStatusDisponivel(estacaoDeTrabalho.nome);
         Serial.println(">>> Estado: DISPONIVEL");
     }
     else if(estadoAtual == EstadoEstacao::OCUPADA && estadoAnterior != estadoAtual) {
-        display.desenharStatusOcupada(NOME_DISPOSITIVO,alunoAtual.matricula, alunoAtual.nome);
+        display.desenharStatusOcupada(estacaoDeTrabalho.nome,alunoAtual.matricula, alunoAtual.nome);
         Serial.println(">>> Estado: OCUPADA");
     }
     else if(estadoAtual == EstadoEstacao::EM_MANUTENCAO && estadoAnterior != estadoAtual) {
-        display.desenharStatusManutencao(NOME_DISPOSITIVO);
+        display.desenharStatusManutencao(estacaoDeTrabalho.nome);
         Serial.println(">>> Estado: EM_MANUTENCAO");
     }
     else if (estadoAtual == EstadoEstacao::CONFIGURACAO) {
@@ -170,4 +179,186 @@ Aluno DispositivoController::obterAlunoPorTag(String tag) {
         }
     }
     return Aluno(0, "", "", "");
+}
+
+void DispositivoController::escreverEmArquivo(String payload, String caminho, String modo) {
+  File rFile = SPIFFS.open(caminho, modo.c_str());
+  if (!rFile) {
+    Serial.println("Erro ao abrir arquivo!");
+  }
+  else {
+    Serial.print("Gravou: ");
+    Serial.println(payload);
+  }
+  rFile.close();
+}
+
+String DispositivoController::lerArquivo(String caminho) {
+    File rFile = SPIFFS.open(caminho, "r");
+    String arquivo;
+    if (!rFile) {
+        Serial.println("Erro ao abrir arquivo!");
+    }
+    else {
+        Serial.print("----------Lendo arquivo ");
+        Serial.print(caminho);
+        Serial.println("  ---------");
+        while (rFile.position() < rFile.size())
+        {
+            arquivo = rFile.readStringUntil('\n');
+            arquivo.trim();
+            Serial.println(arquivo);
+        }
+        rFile.close();
+        return arquivo;
+    }
+}
+
+void DispositivoController::abrirSistemaDeArquivos() {
+  if (!SPIFFS.begin()) {
+    Serial.println("\nErro ao abrir o sistema de arquivos");
+  }
+  else {
+    Serial.println("\nSistema de arquivos aberto com sucesso!");
+  }
+}
+
+void DispositivoController::verificaConexaoEPublicaMensagens() {
+    long tempoTentativaAtual = millis();
+    if(tempoTentativaAtual - tempoTentativaAnterior >= tempoPoliticaDeReconexao) {
+        // Adota política de reconexão em caso de instabilidade
+        if(!conexao.estaConectado()) {
+            Serial.println("Não conectado à rede. Conectando...");
+            conexao.conectar();
+        }
+        if(conexao.estaConectado() && !produtor.estaConectado()) {
+            Serial.println("Produtor não conectado ao broker.");
+            produtor.conectar();
+            publicarMensagensAtrasadas();
+        }
+        tempoTentativaAnterior = tempoTentativaAtual;
+    }
+}
+
+std::vector<String> arquivoParaLista(String arquivo, char delimitador) {
+    std::vector<String> lista;
+    int indiceInicial = 0;
+    int indiceFinal = arquivo.indexOf(delimitador, indiceInicial);
+    while(indiceFinal != -1) {
+        String itemAtual = arquivo.substring(indiceInicial, indiceFinal);
+        indiceInicial = indiceFinal;
+        indiceFinal = arquivo.indexOf(delimitador, indiceInicial);
+        lista.push_back(itemAtual);
+    }
+
+    return lista;
+}
+
+void DispositivoController::adicionarMensagemAcessoEmArquivo(Produtor::MensagemAcesso msg, String tipo) {
+    String registrosAlunos = lerArquivo("/registros.txt");
+    String novoRegistro;
+    novoRegistro.concat(String(msg.idEstacao));
+    novoRegistro.concat(",");
+    novoRegistro.concat(String(msg.aluno.id));
+    novoRegistro.concat(",");
+    novoRegistro.concat(msg.aluno.nome);
+    novoRegistro.concat(",");
+    novoRegistro.concat(msg.aluno.matricula);
+    novoRegistro.concat(",");
+    novoRegistro.concat(tipo);
+    novoRegistro.concat("%");
+    registrosAlunos.concat(novoRegistro);
+    escreverEmArquivo(registrosAlunos, "/registros.txt", "w");
+}
+
+/*
+    Tenta publicar as mensagens presentes no arquivo registros.txt
+    e também publica o último estado da aplicação para sincronizar
+    caso não tenha sido possível enviar antes.
+    Caso alguma mensagem não for publicada, será mantida no arquivo
+    registros.txt e tentará ser enviada novamente na próxima chamada.
+*/
+void DispositivoController::publicarMensagensAtrasadas() {
+    Produtor::MensagemAlteracaoEstado msgEstado(estacaoDeTrabalho.id, estacaoDeTrabalho.nome, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
+    bool publicado = produtor.publicarMensagemAlteracaoEstado(msgEstado);
+    if(publicado) {
+        Serial.println("Mensagem de alteração de estado publicada com sucesso!");
+    }
+    String registrosAlunos = lerArquivo("/registros.txt");
+    std::vector<int> mensagensNaoPublicadas;
+    std::vector<String> registrosParseados = arquivoParaLista(registrosAlunos, '%');
+    for(int i = 0; i < registrosParseados.size(); i++) {
+        // idEstacao, idAluno, nomeAluno, matriculaAluno, tipo
+        std::vector<String> registroAtual = arquivoParaLista(registrosParseados.at(i),',');
+        long idEstacao = atoi(registroAtual.at(0).c_str());
+        long idAluno = atoi(registroAtual.at(1).c_str());
+        String nomeAluno = registroAtual.at(2);
+        String matriculaAluno = registroAtual.at(3);
+        String tipo = registroAtual.at(4);
+        Aluno aluno(idAluno, nomeAluno, matriculaAluno, "");
+        Produtor::MensagemAcesso msgAcesso(idEstacao, aluno);
+        if(tipo.indexOf("ENTRADA") == 0) {
+            bool publicadoEntrada = produtor.publicarMensagemEntrada(msgAcesso);
+            if(publicadoEntrada) {
+                Serial.println("Mensagem de entrada publicada com sucesso!");
+            }
+            else {
+                mensagensNaoPublicadas.push_back(i);
+            }
+        }else {
+            bool publicadoSaida = produtor.publicarMensagemSaida(msgAcesso);
+            if(publicadoSaida) {
+                Serial.println("Mensagem de saída publicada com sucesso!");
+            }
+            else {
+                mensagensNaoPublicadas.push_back(i);
+            }
+        } 
+        // Caso alguma mensagem não tenha sido publicada, tentará publicar novamente
+        // na próxima vez que entrar na política de sincronização
+        if(mensagensNaoPublicadas.size() > 0) {
+            String novoArquivo;
+            for(int j = 0; j < mensagensNaoPublicadas.size(); j++) {
+                novoArquivo.concat(registrosParseados.at(mensagensNaoPublicadas.at(j)));
+                novoArquivo.concat("%");
+            }
+            escreverEmArquivo(novoArquivo, "/registros.txt", "w");
+        }
+    }
+}
+
+void DispositivoController::carregarEstacoesDeTrabalho() {
+    const EstacaoDeTrabalho listaEstacoesDeTrabalho[3] = {
+        EstacaoDeTrabalho(1, "PC201-01", " a9 4f 89 1f"),
+        EstacaoDeTrabalho(2, "PC201-02", " 93 bc 46 13"),
+        EstacaoDeTrabalho(3, "PC201-03", " a6 ed 96 57")
+    };
+    String arquivoEstacoesDeTrabalho;
+    for(int i = 0; i < 3; i++) {
+        String estacaoAtual;
+        estacaoAtual.concat(String(listaEstacoesDeTrabalho[i].id));
+        estacaoAtual.concat(",");
+        estacaoAtual.concat(String(listaEstacoesDeTrabalho[i].nome));
+        estacaoAtual.concat(",");
+        estacaoAtual.concat(String(listaEstacoesDeTrabalho[i].tag));
+        estacaoAtual.concat("%");
+        arquivoEstacoesDeTrabalho.concat(estacaoAtual);
+    }
+    escreverEmArquivo(arquivoEstacoesDeTrabalho, "/estacoesDeTrabalho.txt", "w");
+}
+
+EstacaoDeTrabalho DispositivoController::obterEstacaoDeTrabalhoPorTag(String tag) {
+    EstacaoDeTrabalho estacao;
+    String arquivo = lerArquivo("/estacoesDeTrabalho.txt");
+    std::vector<String> estacoesParseadas = arquivoParaLista(arquivo, '%');
+    for(int i = 0; i < estacoesParseadas.size(); i++) {
+        std::vector<String> estacaoAtual = arquivoParaLista(estacoesParseadas.at(i),',');
+        String tagEstacaoAtual = estacaoAtual.at(2);
+        if(tagEstacaoAtual.indexOf(tag) == 0) {
+            long id = atoi(estacaoAtual.at(0).c_str());
+            String nome = estacaoAtual.at(1);
+            estacao = EstacaoDeTrabalho(id, nome, tag);
+        }
+    }
+    return estacao;
 }

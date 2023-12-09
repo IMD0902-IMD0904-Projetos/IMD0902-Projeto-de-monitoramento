@@ -1,7 +1,6 @@
 #ifndef __ALUNO_H__
 #define __ALUNO_H__
 #include <Arduino.h>
-// TODO Remover quando a informação estiver salva em um BD.
 class Aluno {
     public:
         long id;
