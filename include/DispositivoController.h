@@ -4,6 +4,7 @@
 #include "Botao.h"
 #include "Conexao.h"
 #include "Produtor.h"
+#include "Display.hpp"
 /*
 * Essa classe representa o controlador do dispositivo que é responsável por
 * rastrear, processar e manipular os dados recebidos pelo sensor de distância
@@ -16,16 +17,14 @@ class DispositivoController {
     private:
         enum class EstadoEstacao : int {
             DISPONIVEL = 0,
-            OCUPADA_SEM_REGISTRO,
-            OCUPADA_COM_REGISTRO,
+            OCUPADA,
             EM_MANUTENCAO,
             DESLIGADO,
             CONFIGURACAO
         };
-        const char* estadoEstacaoEnumStr[5] = {
+        const char* estadoEstacaoEnumStr[4] = {
             "DISPONIVEL", 
-            "OCUPADA_SEM_REGISTRO",
-            "OCUPADA_COM_REGISTRO", 
+            "OCUPADA", 
             "EM_MANUTENCAO",
             "DESLIGADO"
         };
@@ -40,24 +39,16 @@ class DispositivoController {
         EstadoEstacao estadoAnterior = EstadoEstacao::DESLIGADO;
         EstadoEstacao ultimoEstadoPreConfiguracao = EstadoEstacao::DESLIGADO;
         String tagAdmin = " 93 bc 46 13";
-        String tagLogada;
-        float distancia;
         RFID rfid;
         Botao botao;
         Conexao conexao;
         Produtor produtor;
-        // Em cm/uS
-        const float VELOCIDADE_DO_SOM = 0.034;
-        const float DISTANCIA_TRIGGER = 25.0;
-        const int TRIGGER_PIN = 13;
-        const int ECHO_PIN = 12;
-        const int LED_VERDE_PIN = 27;
-        const int LED_AMARELA_PIN = 26;
-        const int LED_AZUL_PIN = 25;
-        const int LED_VERMELHA_PIN = 33;
+        Display display;
+
         // Informações da estação de trabalho
-        const long ID_DISPOSITIVO = 1L;
-        const char* NOME_DISPOSITIVO = "PC202-01";
+        int ID_DISPOSITIVO = 1;
+        char* NOME_DISPOSITIVO = "PC202-01";
+        Aluno alunoAtual;
     public:
         //=== Implementa padrão de projeto Singleton nessa classe
         DispositivoController() = default;
@@ -73,19 +64,10 @@ class DispositivoController {
         void processarEventos(void);
         //=== Atualiza a aplicação com base no estado atual
         void atualizar(void);
-        //=== Renderiza algo no terminal / Manipula leds 
-        void renderizar(void) const;
+        //=== Renderiza algo no terminal / Manipula display 
+        void renderizar(void);
 
     private:
-        //=== Lê distância do sensor ultrassônico. Valor em cm/uS.
-        float lerDistancia(void);
-        //=== Executa pulso ultrassônico para ser lido pelo método lerDistancia()
-        void executarPulso(void);
         Aluno obterAlunoPorTag(String tag);
-        void ligarLedAzul(void) const;  
-        void ligarLedAmarela(void) const;
-        void ligarLedVerde(void) const;
-        void ligarLedVermelha(void) const;  
-
 };
 #endif
