@@ -14,12 +14,10 @@ void Conexao::inicializar() {
     Serial.println(" redes Wi-Fi encontradas:");
 
     for (int i = 0; i < numRedes; i++) {
-      Serial.print("Rede ");
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.print("SSID: ");
-      Serial.println(WiFi.SSID(i));
-      Serial.println("-------------");
+        if(WiFi.SSID(i).indexOf(WIFI_SSID) == 0) {
+            Serial.print("Encontrei a rede "+ WiFi.SSID(i));
+            Serial.println("-------------");
+        }
     }
   }
 }

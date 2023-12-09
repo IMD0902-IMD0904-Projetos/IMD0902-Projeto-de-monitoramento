@@ -11,13 +11,18 @@ void DispositivoController::inicializar() {
     Serial.begin(115200);
     SPI.begin();
     abrirSistemaDeArquivos();
+    carregarEstacoesDeTrabalho();
     rfid.inicializar();
     display.inicializar();
     display.desenhar();
     botao.inicializar();
     conexao.inicializar();
     digitalWrite(2, LOW);
+    conexao.conectar();
     produtor.inicializar();
+    if(conexao.estaConectado()) {
+        produtor.conectar();
+    }
     tempoTentativaAnterior = millis();
 }
 
@@ -189,15 +194,17 @@ void DispositivoController::escreverEmArquivo(String payload, String caminho, St
   else {
     Serial.print("Gravou: ");
     Serial.println(payload);
+    rFile.println(payload);
   }
   rFile.close();
 }
 
 String DispositivoController::lerArquivo(String caminho) {
     File rFile = SPIFFS.open(caminho, "r");
-    String arquivo;
+    String arquivo = "";
     if (!rFile) {
         Serial.println("Erro ao abrir arquivo!");
+        return "";
     }
     else {
         Serial.print("----------Lendo arquivo ");
@@ -207,6 +214,7 @@ String DispositivoController::lerArquivo(String caminho) {
         {
             arquivo = rFile.readStringUntil('\n');
             arquivo.trim();
+            Serial.print(">>> Li:");
             Serial.println(arquivo);
         }
         rFile.close();
@@ -234,24 +242,32 @@ void DispositivoController::verificaConexaoEPublicaMensagens() {
         if(conexao.estaConectado() && !produtor.estaConectado()) {
             Serial.println("Produtor não conectado ao broker.");
             produtor.conectar();
+            Serial.println("Buuuh");
             publicarMensagensAtrasadas();
         }
         tempoTentativaAnterior = tempoTentativaAtual;
     }
 }
 
-std::vector<String> arquivoParaLista(String arquivo, char delimitador) {
-    std::vector<String> lista;
+void arquivoParaLista(String arquivo, char delimitador, String lista[], int tamanhoMaximo) {
     int indiceInicial = 0;
     int indiceFinal = arquivo.indexOf(delimitador, indiceInicial);
-    while(indiceFinal != -1) {
-        String itemAtual = arquivo.substring(indiceInicial, indiceFinal);
-        indiceInicial = indiceFinal;
-        indiceFinal = arquivo.indexOf(delimitador, indiceInicial);
-        lista.push_back(itemAtual);
-    }
+    int indiceLista = 0;
 
-    return lista;
+    while (indiceFinal != -1 && indiceLista < tamanhoMaximo) {
+        // Extrai a substring entre os delimitadores
+        String itemAtual = arquivo.substring(indiceInicial, indiceFinal);
+
+        // Adiciona o item à lista
+        lista[indiceLista] = itemAtual;
+
+        // Atualiza os índices para a próxima iteração
+        indiceInicial = indiceFinal + 1;
+        indiceFinal = arquivo.indexOf(delimitador, indiceInicial);
+
+        // Incrementa o índice da lista
+        indiceLista++;
+    }
 }
 
 void DispositivoController::adicionarMensagemAcessoEmArquivo(Produtor::MensagemAcesso msg, String tipo) {
@@ -280,21 +296,29 @@ void DispositivoController::adicionarMensagemAcessoEmArquivo(Produtor::MensagemA
 */
 void DispositivoController::publicarMensagensAtrasadas() {
     Produtor::MensagemAlteracaoEstado msgEstado(estacaoDeTrabalho.id, estacaoDeTrabalho.nome, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
-    bool publicado = produtor.publicarMensagemAlteracaoEstado(msgEstado);
-    if(publicado) {
-        Serial.println("Mensagem de alteração de estado publicada com sucesso!");
+    if(estadoAtual != EstadoEstacao::DESLIGADO || estadoAtual != EstadoEstacao::CONFIGURACAO) {
+        bool publicado = produtor.publicarMensagemAlteracaoEstado(msgEstado);
+        if(publicado) {
+            Serial.println("Mensagem de alteração de estado publicada com sucesso!");
+        }
     }
+        
     String registrosAlunos = lerArquivo("/registros.txt");
-    std::vector<int> mensagensNaoPublicadas;
-    std::vector<String> registrosParseados = arquivoParaLista(registrosAlunos, '%');
-    for(int i = 0; i < registrosParseados.size(); i++) {
+    int tamanhoRegistrosParseados = 10;
+    String registrosParseados[tamanhoRegistrosParseados];
+    arquivoParaLista(registrosAlunos, '%', registrosParseados,tamanhoRegistrosParseados);
+    int mensagensNaoPublicadas[tamanhoRegistrosParseados];
+    int indiceMensagensNaoPublicadas = 0;
+    for(int i = 0; i < tamanhoRegistrosParseados; i++) {
         // idEstacao, idAluno, nomeAluno, matriculaAluno, tipo
-        std::vector<String> registroAtual = arquivoParaLista(registrosParseados.at(i),',');
-        long idEstacao = atoi(registroAtual.at(0).c_str());
-        long idAluno = atoi(registroAtual.at(1).c_str());
-        String nomeAluno = registroAtual.at(2);
-        String matriculaAluno = registroAtual.at(3);
-        String tipo = registroAtual.at(4);
+        int tamanhoRegistroAtual = 5;
+        String registroAtual[tamanhoRegistroAtual]; 
+        arquivoParaLista(registrosParseados[i],',', registroAtual,tamanhoRegistroAtual);
+        long idEstacao = atoi(registroAtual[0].c_str());
+        long idAluno = atoi(registroAtual[1].c_str());
+        String nomeAluno = registroAtual[2];
+        String matriculaAluno = registroAtual[3];
+        String tipo = registroAtual[4];
         Aluno aluno(idAluno, nomeAluno, matriculaAluno, "");
         Produtor::MensagemAcesso msgAcesso(idEstacao, aluno);
         if(tipo.indexOf("ENTRADA") == 0) {
@@ -303,7 +327,8 @@ void DispositivoController::publicarMensagensAtrasadas() {
                 Serial.println("Mensagem de entrada publicada com sucesso!");
             }
             else {
-                mensagensNaoPublicadas.push_back(i);
+                mensagensNaoPublicadas[indiceMensagensNaoPublicadas] = i;
+                indiceMensagensNaoPublicadas++;
             }
         }else {
             bool publicadoSaida = produtor.publicarMensagemSaida(msgAcesso);
@@ -311,15 +336,16 @@ void DispositivoController::publicarMensagensAtrasadas() {
                 Serial.println("Mensagem de saída publicada com sucesso!");
             }
             else {
-                mensagensNaoPublicadas.push_back(i);
+                mensagensNaoPublicadas[indiceMensagensNaoPublicadas] = i;
+                indiceMensagensNaoPublicadas++;
             }
         } 
         // Caso alguma mensagem não tenha sido publicada, tentará publicar novamente
         // na próxima vez que entrar na política de sincronização
-        if(mensagensNaoPublicadas.size() > 0) {
+        if(indiceMensagensNaoPublicadas > 0) {
             String novoArquivo;
-            for(int j = 0; j < mensagensNaoPublicadas.size(); j++) {
-                novoArquivo.concat(registrosParseados.at(mensagensNaoPublicadas.at(j)));
+            for(int j = 0; j < indiceMensagensNaoPublicadas; j++) {
+                novoArquivo.concat(registrosParseados[mensagensNaoPublicadas[j]]);
                 novoArquivo.concat("%");
             }
             escreverEmArquivo(novoArquivo, "/registros.txt", "w");
@@ -341,6 +367,7 @@ void DispositivoController::carregarEstacoesDeTrabalho() {
         estacaoAtual.concat(String(listaEstacoesDeTrabalho[i].nome));
         estacaoAtual.concat(",");
         estacaoAtual.concat(String(listaEstacoesDeTrabalho[i].tag));
+        estacaoAtual.concat(",");
         estacaoAtual.concat("%");
         arquivoEstacoesDeTrabalho.concat(estacaoAtual);
     }
@@ -350,13 +377,17 @@ void DispositivoController::carregarEstacoesDeTrabalho() {
 EstacaoDeTrabalho DispositivoController::obterEstacaoDeTrabalhoPorTag(String tag) {
     EstacaoDeTrabalho estacao;
     String arquivo = lerArquivo("/estacoesDeTrabalho.txt");
-    std::vector<String> estacoesParseadas = arquivoParaLista(arquivo, '%');
-    for(int i = 0; i < estacoesParseadas.size(); i++) {
-        std::vector<String> estacaoAtual = arquivoParaLista(estacoesParseadas.at(i),',');
-        String tagEstacaoAtual = estacaoAtual.at(2);
+    int tamanhoEstacoesParseadas = 3;
+    String estacoesParseadas[tamanhoEstacoesParseadas]; 
+    arquivoParaLista(arquivo, '%', estacoesParseadas, tamanhoEstacoesParseadas);
+    for(int i = 0; i < tamanhoEstacoesParseadas; i++) {
+        int tamanhoEstacaoAtual = 3;
+        String estacaoAtual[tamanhoEstacaoAtual];
+        arquivoParaLista(estacoesParseadas[i],',', estacaoAtual, tamanhoEstacaoAtual);
+        String tagEstacaoAtual = estacaoAtual[2];
         if(tagEstacaoAtual.indexOf(tag) == 0) {
-            long id = atoi(estacaoAtual.at(0).c_str());
-            String nome = estacaoAtual.at(1);
+            long id = atoi(estacaoAtual[0].c_str());
+            String nome = estacaoAtual[1];
             estacao = EstacaoDeTrabalho(id, nome, tag);
         }
     }
