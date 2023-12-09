@@ -4,7 +4,7 @@
 
 class RFID {
     private:
-        const int SS_PIN = 5;
+        const int SS_PIN = 12;
         const int RST_PIN = 15;
         MFRC522 rfid;
         String identificador;

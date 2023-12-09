@@ -6,7 +6,7 @@ void RFID::inicializar() {
 }
 
 void RFID::ler() {
-    if (rfid.PICC_IsNewCardPresent()) { 
+    if (rfid.PICC_IsNewCardPresent()) {
         if (rfid.PICC_ReadCardSerial()) {
             MFRC522::PICC_Type piccType = rfid.PICC_GetType(rfid.uid.sak);
             Serial.print("| [RFID/NFC Tag Type]: ");
@@ -23,9 +23,9 @@ void RFID::ler() {
 }
 
 String RFID::obterIdentificador() const {
-    return this->identificador;
+    return identificador;
 }
 
 void RFID::limparIdentificador() {
-    this->identificador = "";
+    identificador = "";
 }
