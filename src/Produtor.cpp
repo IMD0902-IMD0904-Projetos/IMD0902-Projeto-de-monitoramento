@@ -3,6 +3,8 @@
 void Produtor::inicializar() {
     mqttClient = PubSubClient(esp32WiFiClient);
     mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
+    randomSeed(124718274);
+    clientId.concat(String(random(1, 800000)));
 }
 
 void Produtor::conectar() {

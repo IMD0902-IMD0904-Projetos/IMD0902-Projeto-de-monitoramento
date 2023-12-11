@@ -1,8 +1,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <FS.h>
-#include <cstring>
-#include <vector>
+#include <HTTPClient.h>
 #include "SPIFFS.h"
 #include "DispositivoController.h"
 
@@ -20,6 +19,29 @@ void DispositivoController::inicializar() {
     conexao.inicializar();
     digitalWrite(2, LOW);
     conexao.conectar();
+    if(conexao.estaConectado()) {
+        HTTPClient http;
+        String url = "https://io.adafruit.com/api/v2/time/ISO-8601";
+        http.begin(url);
+
+        // Adicionar cabeçalho de autenticação
+        http.addHeader("X-AIO-Key", "aio_mpxW45Bxu9aR8cvCbvGIroCfx68q");
+
+        // Enviar a requisição
+        int httpCode = http.GET();
+
+        // Verificar se a requisição foi bem-sucedida
+        if (httpCode > 0) {
+            if (httpCode == HTTP_CODE_OK) {
+                String payload = http.getString();
+                Serial.println("Resposta da API:");
+                Serial.println(payload);
+            }
+        } else {
+            Serial.printf("[HTTP] Falha na requisição: %s\n", http.errorToString(httpCode).c_str());
+        }
+        http.end();
+    }
     produtor.inicializar();
     tempoTentativaAnterior = millis();
 }
@@ -241,7 +263,7 @@ void DispositivoController::verificaConexaoEPublicaMensagens() {
         if(conexao.estaConectado() && !produtor.estaConectado()) {
             Serial.println("Produtor não conectado ao broker.");
             produtor.conectar();
-            // publicarMensagensAtrasadas();
+            publicarMensagensAtrasadas();
         }
         tempoTentativaAnterior = tempoTentativaAtual;
     }
@@ -293,26 +315,20 @@ void DispositivoController::adicionarMensagemAcessoEmArquivo(Produtor::MensagemA
     registros.txt e tentará ser enviada novamente na próxima chamada.
 */
 void DispositivoController::publicarMensagensAtrasadas() {
-    Serial.println("AAA");
     Produtor::MensagemAlteracaoEstado msgEstado(estacaoDeTrabalho.id, estacaoDeTrabalho.nome, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
     if(estadoAtual != EstadoEstacao::DESLIGADO || estadoAtual != EstadoEstacao::CONFIGURACAO) {
-        Serial.println("BBB");
         bool publicado = produtor.publicarMensagemAlteracaoEstado(msgEstado);
         if(publicado) {
             Serial.println("Mensagem de alteração de estado publicada com sucesso!");
         }
     }
-        
+    delay(200);
     String registrosAlunos = lerArquivo("/registros.txt");
-    Serial.println("CCC");
     int tamanhoRegistrosParseados = 10;
     String registrosParseados[tamanhoRegistrosParseados];
-    Serial.println("DDD");
     arquivoParaLista(registrosAlunos, '%', registrosParseados,tamanhoRegistrosParseados);
-    Serial.println("EEE");
     int mensagensNaoPublicadas[tamanhoRegistrosParseados];
     int indiceMensagensNaoPublicadas = 0;
-    Serial.println("FFF");
     for(int i = 0; i < tamanhoRegistrosParseados; i++) {
         // idEstacao, idAluno, nomeAluno, matriculaAluno, tipo
         int tamanhoRegistroAtual = 5;
