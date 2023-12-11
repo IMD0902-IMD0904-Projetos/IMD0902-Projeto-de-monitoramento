@@ -11,12 +11,11 @@ void Conexao::inicializar() {
         Serial.println("Nenhuma rede Wi-Fi encontrada.");
     } else {
     Serial.print(numRedes);
-    Serial.println(" redes Wi-Fi encontradas:");
+    Serial.println(" redes Wi-Fi encontradas.");
 
     for (int i = 0; i < numRedes; i++) {
         if(WiFi.SSID(i).indexOf(WIFI_SSID) == 0) {
-            Serial.print("Encontrei a rede "+ WiFi.SSID(i));
-            Serial.println("-------------");
+            Serial.println(">>> Encontrei a rede "+ WiFi.SSID(i));
         }
     }
   }

@@ -10,6 +10,7 @@
 void DispositivoController::inicializar() {
     Serial.begin(115200);
     SPI.begin();
+    // SPIFFS.format();
     abrirSistemaDeArquivos();
     carregarEstacoesDeTrabalho();
     rfid.inicializar();
@@ -20,13 +21,11 @@ void DispositivoController::inicializar() {
     digitalWrite(2, LOW);
     conexao.conectar();
     produtor.inicializar();
-    if(conexao.estaConectado()) {
-        produtor.conectar();
-    }
     tempoTentativaAnterior = millis();
 }
 
 void DispositivoController::processarEventos() {
+    produtor.manterConexao();
     botao.resetarBotao();
     botao.lerBotao();
     digitalWrite(12, LOW);
@@ -242,8 +241,7 @@ void DispositivoController::verificaConexaoEPublicaMensagens() {
         if(conexao.estaConectado() && !produtor.estaConectado()) {
             Serial.println("Produtor não conectado ao broker.");
             produtor.conectar();
-            Serial.println("Buuuh");
-            publicarMensagensAtrasadas();
+            // publicarMensagensAtrasadas();
         }
         tempoTentativaAnterior = tempoTentativaAtual;
     }
@@ -295,8 +293,10 @@ void DispositivoController::adicionarMensagemAcessoEmArquivo(Produtor::MensagemA
     registros.txt e tentará ser enviada novamente na próxima chamada.
 */
 void DispositivoController::publicarMensagensAtrasadas() {
+    Serial.println("AAA");
     Produtor::MensagemAlteracaoEstado msgEstado(estacaoDeTrabalho.id, estacaoDeTrabalho.nome, estadoEstacaoEnumStr[static_cast<int>(estadoAtual)]);
     if(estadoAtual != EstadoEstacao::DESLIGADO || estadoAtual != EstadoEstacao::CONFIGURACAO) {
+        Serial.println("BBB");
         bool publicado = produtor.publicarMensagemAlteracaoEstado(msgEstado);
         if(publicado) {
             Serial.println("Mensagem de alteração de estado publicada com sucesso!");
@@ -304,11 +304,15 @@ void DispositivoController::publicarMensagensAtrasadas() {
     }
         
     String registrosAlunos = lerArquivo("/registros.txt");
+    Serial.println("CCC");
     int tamanhoRegistrosParseados = 10;
     String registrosParseados[tamanhoRegistrosParseados];
+    Serial.println("DDD");
     arquivoParaLista(registrosAlunos, '%', registrosParseados,tamanhoRegistrosParseados);
+    Serial.println("EEE");
     int mensagensNaoPublicadas[tamanhoRegistrosParseados];
     int indiceMensagensNaoPublicadas = 0;
+    Serial.println("FFF");
     for(int i = 0; i < tamanhoRegistrosParseados; i++) {
         // idEstacao, idAluno, nomeAluno, matriculaAluno, tipo
         int tamanhoRegistroAtual = 5;
@@ -339,6 +343,7 @@ void DispositivoController::publicarMensagensAtrasadas() {
                 mensagensNaoPublicadas[indiceMensagensNaoPublicadas] = i;
                 indiceMensagensNaoPublicadas++;
             }
+            delay(200);
         } 
         // Caso alguma mensagem não tenha sido publicada, tentará publicar novamente
         // na próxima vez que entrar na política de sincronização

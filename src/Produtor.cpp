@@ -7,15 +7,24 @@ void Produtor::inicializar() {
 
 void Produtor::conectar() {
     unsigned long tempoInicio = millis();
+    Serial.println("MQTT: " + String(mqttClient.state()));
     while(!(mqttClient.connected()) && (millis() - tempoInicio) < MQTT_TIMEOUT) {
         if(mqttClient.connect(clientId.c_str(), IO_USERNAME, IO_KEY)) {
             Serial.println("Conectado ao broker MQTT!");
         }
+        Serial.println("MQTT: " + String(mqttClient.state()));
+        delay(1000);
     }
 }
 
 bool Produtor::estaConectado() {
+    Serial.print("Estado MQTT (estaConectado): ");
+    Serial.println(mqttClient.state());
     return mqttClient.connected();
+}
+
+bool Produtor::manterConexao() {
+    return mqttClient.loop();
 }
 
 bool Produtor::publicarMensagemAlteracaoEstado(const MensagemAlteracaoEstado mensagem) {

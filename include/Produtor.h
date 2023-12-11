@@ -9,12 +9,12 @@ class Produtor {
     private:
         // Informações do broker Adafruit
         const char* IO_USERNAME = "fawnbr";
-        const char* IO_KEY = "io_key";
+        const char* IO_KEY = "ai_key";
         const char* TOPICO_ACESSO = "fawnbr/feeds/projetomonitoramento.acesso";
         const char* TOPICO_ALTERACAO_ESTADO = "fawnbr/feeds/projetomonitoramento.alteracaoestado";
         const char* MQTT_BROKER = "io.adafruit.com";
         // Informações do MQTT
-        String clientId = "ESP32ClientProjetoMonitoramento";
+        String clientId = "ESP32ClientProjetoMonitoramento_";
         const int MQTT_PORT = 1883;
         const int MQTT_TIMEOUT = 10000;
         WiFiClient esp32WiFiClient;
@@ -56,6 +56,7 @@ class Produtor {
         //=== Inicializa as configurações e variáveis necessárias para o programa rodar.
         void inicializar(void);
         void conectar(void);
+        bool manterConexao(void);
         bool estaConectado(void);
         bool publicarMensagemAlteracaoEstado(const MensagemAlteracaoEstado mensagem);
         bool publicarMensagemEntrada(const MensagemAcesso mensagem);

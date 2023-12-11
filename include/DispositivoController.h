@@ -26,7 +26,7 @@ class DispositivoController {
         const char* estadoEstacaoEnumStr[4] = {
             "DISPONIVEL", 
             "OCUPADA", 
-            "EM_MANUTENCAO",
+            "MANUTENCAO",
             "DESLIGADO"
         };
 
